@@ -36,6 +36,8 @@
 
 #include "opengl.h"
 
+#include "hidapi.h"
+
 #ifndef GL_CLAMP_TO_EDGE
 # define GL_CLAMP_TO_EDGE 0x812F
 #endif
@@ -278,7 +280,6 @@ static void BuildYUVFragmentShader(vout_display_opengl_t *vgl,
         " result = x * Coefficient[0] + Coefficient[3];"
         " result = (y * Coefficient[1]) + result;"
         " result = (z * Coefficient[2]) + result;"
-        " result = result + vec4(0.5, 0.2, -0.2, 0.0);"
         " gl_FragColor = result;"
         "}";
     bool swap_uv = fmt->i_chroma == VLC_CODEC_YV12 ||
@@ -388,6 +389,12 @@ static void BuildXYZFragmentShader(vout_display_opengl_t *vgl,
 
 #endif
 
+// Helper for qsort god what decade is this
+int cmp(const void *a, const void *b);
+int cmp(const void *a, const void *b) {
+    return strcmp(*((char **)a), *((char **)b));
+}
+
 vout_display_opengl_t *vout_display_opengl_New(video_format_t *fmt,
                                                const vlc_fourcc_t **subpicture_chromas,
                                                vlc_gl_t *gl)
@@ -407,6 +414,26 @@ vout_display_opengl_t *vout_display_opengl_New(video_format_t *fmt,
         free(vgl);
         return NULL;
     }
+
+    // Open the USB HID devices for the balls
+    struct hid_device_info *devlist, *c;
+    char* paths[3];
+    hid_device *ball1, *ball2, *ball3;
+    devlist = hid_enumerate(0x047d, 0x2048);
+    c = devlist;
+    paths[0] = strdup(c->path);
+    c = c->next;
+    paths[1] = strdup(c->path);
+    c = c->next;
+    paths[2] = strdup(c->path);
+    qsort(paths, 3, sizeof(char *), cmp);
+    fprintf(stderr, "Got three balls on %s, %s and %s\n", paths[2], paths[1], paths[0]);
+    ball1 = hid_open_path(paths[2]);
+    ball2 = hid_open_path(paths[1]);
+    ball3 = hid_open_path(paths[0]);
+    hid_set_nonblocking(ball1, 1);
+    hid_set_nonblocking(ball2, 1);
+    hid_set_nonblocking(ball3, 1);
 
     const char *extensions = (const char *)glGetString(GL_EXTENSIONS);
 #if !USE_OPENGL_ES
