@@ -186,6 +186,12 @@ struct vout_display_opengl_t {
 
     uint8_t *texture_temp_buf;
     int      texture_temp_buf_size;
+
+    struct colour {
+        float r, g, b;
+    } lift, gamma, gain;
+
+    hid_device *ball1, *ball2, *ball3;
 };
 
 static inline int GetAlignedSize(unsigned size)
@@ -418,7 +424,6 @@ vout_display_opengl_t *vout_display_opengl_New(video_format_t *fmt,
     // Open the USB HID devices for the balls
     struct hid_device_info *devlist, *c;
     char* paths[3];
-    hid_device *ball1, *ball2, *ball3;
     devlist = hid_enumerate(0x047d, 0x2048);
     c = devlist;
     paths[0] = strdup(c->path);
@@ -428,12 +433,16 @@ vout_display_opengl_t *vout_display_opengl_New(video_format_t *fmt,
     paths[2] = strdup(c->path);
     qsort(paths, 3, sizeof(char *), cmp);
     fprintf(stderr, "Got three balls on %s, %s and %s\n", paths[2], paths[1], paths[0]);
-    ball1 = hid_open_path(paths[2]);
-    ball2 = hid_open_path(paths[1]);
-    ball3 = hid_open_path(paths[0]);
-    hid_set_nonblocking(ball1, 1);
-    hid_set_nonblocking(ball2, 1);
-    hid_set_nonblocking(ball3, 1);
+    vgl->ball1 = hid_open_path(paths[2]);
+    vgl->ball2 = hid_open_path(paths[1]);
+    vgl->ball3 = hid_open_path(paths[0]);
+    hid_set_nonblocking(vgl->ball1, 1);
+    hid_set_nonblocking(vgl->ball2, 1);
+    hid_set_nonblocking(vgl->ball3, 1);
+
+    vgl->lift.r = vgl->lift.g = vgl->lift.b = 0.0;
+    vgl->gamma.r = vgl->gamma.g = vgl->gamma.b = 1.0;
+    vgl->gain.r = vgl->gain.g = vgl->gain.b = 1.0;
 
     const char *extensions = (const char *)glGetString(GL_EXTENSIONS);
 #if !USE_OPENGL_ES
@@ -1066,6 +1075,30 @@ static void DrawWithShaders(vout_display_opengl_t *vgl,
 int vout_display_opengl_Display(vout_display_opengl_t *vgl,
                                 const video_format_t *source)
 {
+    unsigned char b[5];
+    float ring, x, y;
+    int r = 0;
+    memset(b, 0, sizeof(b));
+    while(r > 0) {
+        r = hid_read(vgl->ball1, b, sizeof(b));
+        x = ((float) (signed char) b[1]) / 100.0;
+        vgl->lift.g += x;
+        vgl->lift.r -= x / 2.0;
+        vgl->lift.b -= x / 2.0;
+        y = ((float) (signed char) b[2]) / 100.0;
+        vgl->lift.r += y;
+        vgl->lift.g -= y / 2.0;
+        vgl->lift.b -= y / 2.0;
+        ring = ((float) (signed char) b[3]) / 1.0;
+        vgl->lift.r -= ring;
+        vgl->lift.g -= ring;
+        vgl->lift.b -= ring;
+        if(b[0]) {
+            vgl->lift.r = vgl->lift.g = vgl->lift.b = 0.0;
+        }
+    }
+    fprintf(stderr, "Drawing, lift.r is %f\n", vgl->lift.r);
+
     if (vlc_gl_Lock(vgl->gl))
         return VLC_EGENERIC;
 
