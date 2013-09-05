@@ -275,6 +275,7 @@ static void BuildYUVFragmentShader(vout_display_opengl_t *vgl,
         "uniform sampler2D Texture1;"
         "uniform sampler2D Texture2;"
         "uniform vec4      Coefficient[4];"
+        "uniform vec4      Lift,Gamma,Gain;"
         "varying vec4      TexCoord0,TexCoord1,TexCoord2;"
 
         "void main(void) {"
@@ -286,6 +287,9 @@ static void BuildYUVFragmentShader(vout_display_opengl_t *vgl,
         " result = x * Coefficient[0] + Coefficient[3];"
         " result = (y * Coefficient[1]) + result;"
         " result = (z * Coefficient[2]) + result;"
+        " result = Gain * result;"
+        " result = Lift + result;"
+        " result = pow(result, Gamma);"
         " gl_FragColor = result;"
         "}";
     bool swap_uv = fmt->i_chroma == VLC_CODEC_YV12 ||
@@ -1031,6 +1035,9 @@ static void DrawWithShaders(vout_display_opengl_t *vgl,
             vgl->Uniform1i(vgl->GetUniformLocation(vgl->program[0], "Texture0"), 0);
             vgl->Uniform1i(vgl->GetUniformLocation(vgl->program[0], "Texture1"), 1);
             vgl->Uniform1i(vgl->GetUniformLocation(vgl->program[0], "Texture2"), 2);
+            vgl->Uniform4f(vgl->GetUniformLocation(vgl->program[0], "Lift"), vgl->lift.r, vgl->lift.g, vgl->lift.b, 0.0);
+            vgl->Uniform4f(vgl->GetUniformLocation(vgl->program[0], "Gamma"), vgl->gamma.r, vgl->gamma.g, vgl->gamma.b, 1.0);
+            vgl->Uniform4f(vgl->GetUniformLocation(vgl->program[0], "Gain"), vgl->gain.r, vgl->gain.g, vgl->gain.b, 1.0);
         }
         else if (vgl->chroma->plane_count == 1) {
             vgl->Uniform1i(vgl->GetUniformLocation(vgl->program[0], "Texture0"), 0);
@@ -1067,7 +1074,7 @@ static void DrawWithShaders(vout_display_opengl_t *vgl,
     glClientActiveTexture(GL_TEXTURE0 + 0);
     vgl->EnableVertexAttribArray(vgl->GetAttribLocation(vgl->program[program], "VertexPosition"));
     vgl->VertexAttribPointer(vgl->GetAttribLocation(vgl->program[program], "VertexPosition"), 2, GL_FLOAT, 0, 0, vertexCoord);
-
+    
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 #endif
