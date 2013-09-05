@@ -287,8 +287,9 @@ static void BuildYUVFragmentShader(vout_display_opengl_t *vgl,
         " result = x * Coefficient[0] + Coefficient[3];"
         " result = (y * Coefficient[1]) + result;"
         " result = (z * Coefficient[2]) + result;"
-        " result = Gain * result;"
+        " result = (Gain/(vec4(1.0)+Lift)) * result;"
         " result = Lift + result;"
+        " result = clamp(result, vec4(0.0), vec4(1.0));"
         " result = pow(result, Gamma);"
         " gl_FragColor = result;"
         "}";
@@ -1085,16 +1086,18 @@ int vout_display_opengl_Display(vout_display_opengl_t *vgl,
     unsigned char b[5];
     float ring, x, y;
     int r = 0;
+
+    // Real dumb, way too many reads(), don't do this, whatever
     while((r = hid_read(vgl->ball1, b, sizeof(b))) > 0) {
-        x = ((float) (signed char) b[1]) / 2000.0;
+        x = ((float) (signed char) b[1]) / 8000.0;
         vgl->lift.g += x;
         vgl->lift.r -= x / 2.0;
         vgl->lift.b -= x / 2.0;
-        y = ((float) (signed char) b[2]) / 2000.0;
+        y = ((float) (signed char) b[2]) / 8000.0;
         vgl->lift.r += y;
         vgl->lift.g -= y / 2.0;
         vgl->lift.b -= y / 2.0;
-        ring = ((float) (signed char) b[3]) / 20.0;
+        ring = ((float) (signed char) b[3]) / 120.0;
         vgl->lift.r -= ring;
         vgl->lift.g -= ring;
         vgl->lift.b -= ring;
@@ -1103,32 +1106,32 @@ int vout_display_opengl_Display(vout_display_opengl_t *vgl,
         }
     }
     while((r = hid_read(vgl->ball2, b, sizeof(b))) > 0) {
-        x = ((float) (signed char) b[1]) / 3000.0;
+        x = ((float) (signed char) b[1]) / -10000.0;
         vgl->gamma.g += x;
         vgl->gamma.r -= x / 2.0;
         vgl->gamma.b -= x / 2.0;
-        y = ((float) (signed char) b[2]) / 3000.0;
+        y = ((float) (signed char) b[2]) / -10000.0;
         vgl->gamma.r += y;
         vgl->gamma.g -= y / 2.0;
         vgl->gamma.b -= y / 2.0;
-        ring = ((float) (signed char) b[3]) / 100.0;
+        ring = ((float) (signed char) b[3]) / -60.0;
         vgl->gamma.r -= ring;
         vgl->gamma.g -= ring;
         vgl->gamma.b -= ring;
         if(b[0]) {
-            vgl->gamma.r = vgl->gamma.g = vgl->gamma.b = 0.0;
+            vgl->gamma.r = vgl->gamma.g = vgl->gamma.b = 1.0;
         }
     }
     while((r = hid_read(vgl->ball3, b, sizeof(b))) > 0) {
-        x = ((float) (signed char) b[1]) / 2000.0;
+        x = ((float) (signed char) b[1]) / 8000.0;
         vgl->gain.g += x;
         vgl->gain.r -= x / 2.0;
         vgl->gain.b -= x / 2.0;
-        y = ((float) (signed char) b[2]) / 2000.0;
+        y = ((float) (signed char) b[2]) / 8000.0;
         vgl->gain.r += y;
         vgl->gain.g -= y / 2.0;
         vgl->gain.b -= y / 2.0;
-        ring = ((float) (signed char) b[3]) / 20.0;
+        ring = ((float) (signed char) b[3]) / 120.0;
         vgl->gain.r -= ring;
         vgl->gain.g -= ring;
         vgl->gain.b -= ring;
