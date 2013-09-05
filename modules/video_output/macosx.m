@@ -77,6 +77,8 @@ static int OpenglLock (vlc_gl_t *gl);
 static void OpenglUnlock (vlc_gl_t *gl);
 static void OpenglSwap (vlc_gl_t *gl);
 
+extern int ballsbypass;
+
 /**
  * Module declaration
  */
@@ -731,6 +733,7 @@ static void OpenglSwap (vlc_gl_t *gl)
             if ([o_event type] == NSLeftMouseDown && !([o_event modifierFlags] &  NSControlKeyMask)) {
                 if ([o_event clickCount] <= 1)
                     vout_display_SendEventMousePressed (vd, MOUSE_BUTTON_LEFT);
+                    ballsbypass = 1;
             }
         }
     }
@@ -754,6 +757,7 @@ static void OpenglSwap (vlc_gl_t *gl)
         if (vd) {
             if ([o_event type] == NSLeftMouseUp)
                 vout_display_SendEventMouseReleased (vd, MOUSE_BUTTON_LEFT);
+                    ballsbypass = 0;
         }
     }
 

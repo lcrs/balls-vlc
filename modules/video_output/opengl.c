@@ -194,6 +194,8 @@ struct vout_display_opengl_t {
     hid_device *ball1, *ball2, *ball3;
 };
 
+int ballsbypass = 0;
+
 static inline int GetAlignedSize(unsigned size)
 {
     /* Return the smallest larger or equal power of 2 */
@@ -1040,6 +1042,11 @@ static void DrawWithShaders(vout_display_opengl_t *vgl,
             vgl->Uniform4f(vgl->GetUniformLocation(vgl->program[0], "Lift"), vgl->lift.r, vgl->lift.g, vgl->lift.b, 0.0);
             vgl->Uniform4f(vgl->GetUniformLocation(vgl->program[0], "Gamma"), vgl->gamma.r, vgl->gamma.g, vgl->gamma.b, 1.0);
             vgl->Uniform4f(vgl->GetUniformLocation(vgl->program[0], "Gain"), vgl->gain.r, vgl->gain.g, vgl->gain.b, 1.0);
+            if(ballsbypass) {
+                vgl->Uniform4f(vgl->GetUniformLocation(vgl->program[0], "Lift"), 0.0, 0.0, 0.0, 0.0);
+                vgl->Uniform4f(vgl->GetUniformLocation(vgl->program[0], "Gamma"), 1.0, 1.0, 1.0, 1.0);
+                vgl->Uniform4f(vgl->GetUniformLocation(vgl->program[0], "Gain"), 1.0, 1.0, 1.0, 1.0);
+            }
         }
         else if (vgl->chroma->plane_count == 1) {
             vgl->Uniform1i(vgl->GetUniformLocation(vgl->program[0], "Texture0"), 0);
